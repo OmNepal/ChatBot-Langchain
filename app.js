@@ -1,5 +1,5 @@
 import express from 'express';
-import { createStandaloneQuestion } from './index.js'; // Importing the function to create standalone questions
+import { handleLangchainTasks } from './index.js'; // Importing the function to create standalone questions
 
 const app = express();
 
@@ -15,8 +15,8 @@ app.get('/', (req, res) => {
 
 app.post('/user-input', async (req, res) => {
   const userInput = req.body.userInput;
-  const response = await createStandaloneQuestion(userInput);
-  res.json({ message: "Input received", response: response.content });
+  const response = await handleLangchainTasks(userInput);
+  res.json({ message: "Input received" });
 })
 
 app.listen(3000, () => {

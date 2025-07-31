@@ -6,50 +6,63 @@ import { OpenAIEmbeddings } from "@langchain/openai"; //importing OpenAIEmbeddin
 import dotenv from 'dotenv'; //importing dotenv to manage environment variables
 import { PromptTemplate } from "@langchain/core/prompts";
 import { ChatOpenAI } from "@langchain/openai";
+import { StringOutputParser } from "@langchain/core/output_parsers";
 
 dotenv.config(); //loading environment variables from .env file
 
-try {
-  const text = await readFile('scrimba-info.txt', 'utf-8') //reading file content
+const sbApiKey = process.env.SUPABASE_API_KEY;
+const sbUrl = process.env.SUPABASE_URL;
+const openAiApiKey = process.env.OPENAI_API_KEY;
 
-  const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 500, // size of each chunk
-    separators: ['\n\n', '\n', ' ', ''], // separators to split the text without losing the actual structure
-    chunkOverlap: 50 // overlap between chunks to maintain context
-  })
+const client = createClient(sbUrl, sbApiKey) //creating supabase client to interact with the Supabase database
 
-  const output = await splitter.createDocuments([text])
+const embeddings = new OpenAIEmbeddings({ openAIApiKey: openAiApiKey })
 
-  const sbApiKey = process.env.SUPABASE_API_KEY;
-  const sbUrl = process.env.SUPABASE_URL;
-  const openAiApiKey = process.env.OPENAI_API_KEY;
+const llm = new ChatOpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
-  const client = createClient(sbUrl, sbApiKey) //creating supabase client to interact with the Supabase database
+/* commented part is how to read a file and create chunks with text splitter and then load them into Supabase
+s
+const text = await readFile('scrimba-info.txt', 'utf-8') //reading file content
 
-  await SupabaseVectorStore.fromDocuments( //load the documents and their embeddings into Supabase
-    output,
-    new OpenAIEmbeddings({ openAIApiKey: openAiApiKey }), //using OpenAIEmbeddings to generate embeddings for the documents
-    {
-      client,
-      tableName: 'documents'
-    }
-  )
+const splitter = new RecursiveCharacterTextSplitter({
+  chunkSize: 500, // size of each chunk
+  separators: ['\n\n', '\n', ' ', ''], // separators to split the text without losing the actual structure
+  chunkOverlap: 50 // overlap between chunks to maintain context
+})
 
-} catch (error) {
-  console.error("An error occurred:", error);
-}
+const output = await splitter.createDocuments([text])
 
+await SupabaseVectorStore.fromDocuments( //load the documents and their embeddings into Supabase
+  output,
+  embeddings, //using OpenAIEmbeddings to generate embeddings for the documents
+  {
+    client,
+    tableName: 'documents'
+  }
+)
+  */
 
-
-export async function createStandaloneQuestion(userInput) {
+export async function handleLangchainTasks(userInput) {
   const prompt = "Create a standalone question based on the folowing user input: {userInput}";
+  //creating a prompt template to generate standalone questions based on user input
   const promptTemplate = PromptTemplate.fromTemplate(prompt);
 
-  const standaloneQsnChain = promptTemplate.pipe(new ChatOpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-  }));
+  const vectorStore = new SupabaseVectorStore(embeddings, {
+    client,
+    tableName: 'documents',
+    queryName: 'match_documents'
+  })
 
-  const response = await standaloneQsnChain.invoke({ userInput });
-  console.log("Standalone question created:", response.content);
-  return response
+  //creating a retriever to fetch relevant documents from supabase based on the standalone question
+  const retriever = vectorStore.asRetriever()
+
+  //creating a chain that combines the prompt template, LLM, output parser, and retriever
+  //output of one component is passed as input to the next component
+  const chain = promptTemplate.pipe(llm).pipe(new StringOutputParser()).pipe(retriever);
+
+  const response = await chain.invoke({ userInput });
+  console.log("Docs relevant to Standalone question:", response);
+
 }
