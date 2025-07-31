@@ -1,5 +1,3 @@
-
-
 const userInput = document.getElementById('user-input');
 const chatbotConversation = document.getElementById('chatbot-conversation-container');
 let question;
@@ -17,6 +15,8 @@ form.addEventListener('submit', async (e) => {
     },
     body: JSON.stringify({ userInput: question })
   })
+
+  console.log("Response from server:", (response.message));
 })
 
 async function progressConversation() {

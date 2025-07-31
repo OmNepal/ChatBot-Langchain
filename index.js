@@ -5,6 +5,7 @@ import { SupabaseVectorStore } from "@langchain/community/vectorstores/supabase"
 import { OpenAIEmbeddings } from "@langchain/openai"; //importing OpenAIEmbeddings from langchain
 import dotenv from 'dotenv'; //importing dotenv to manage environment variables
 import { PromptTemplate } from "@langchain/core/prompts";
+import { ChatOpenAI } from "@langchain/openai";
 
 dotenv.config(); //loading environment variables from .env file
 
@@ -38,8 +39,17 @@ try {
   console.error("An error occurred:", error);
 }
 
-export async function getResponse() {
-  const prompt = "Create a standalone question based on the folowing information: {userInput}";
+
+
+export async function createStandaloneQuestion(userInput) {
+  const prompt = "Create a standalone question based on the folowing user input: {userInput}";
   const promptTemplate = PromptTemplate.fromTemplate(prompt);
-  console.log("Prompt Template:", promptTemplate);
+
+  const standaloneQsnChain = promptTemplate.pipe(new ChatOpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  }));
+
+  const response = await standaloneQsnChain.invoke({ userInput });
+  console.log("Standalone question created:", response.content);
+  return response
 }
