@@ -63,6 +63,18 @@ export async function handleLangchainTasks(userInput) {
   const chain = promptTemplate.pipe(llm).pipe(new StringOutputParser()).pipe(retriever);
 
   const response = await chain.invoke({ userInput });
-  console.log("Docs relevant to Standalone question:", response);
 
+
+  const prompt2 = "You are a friendly chatbot that answers questions about Scrimba based on the provided context: {context}. Only answer based on the context and do not make up any information. If you don't know the answer, apologize and ask the user to email at help@scrimba.com. User's query: {question}";
+
+  const promptTemplate2 = PromptTemplate.fromTemplate(prompt2);
+
+  const chain2 = promptTemplate2.pipe(llm)
+
+  const response2 = await chain2.invoke({
+    context: response,
+    question: userInput
+  })
+
+  return response2.content;
 }

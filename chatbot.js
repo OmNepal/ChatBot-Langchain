@@ -16,7 +16,8 @@ form.addEventListener('submit', async (e) => {
     body: JSON.stringify({ userInput: question })
   })
 
-  console.log("Response from server:", (response.message));
+  const data = await response.json();
+  document.querySelector('.speech-ai').textContent = data.content;
 })
 
 async function progressConversation() {

@@ -16,7 +16,7 @@ app.get('/', (req, res) => {
 app.post('/user-input', async (req, res) => {
   const userInput = req.body.userInput;
   const response = await handleLangchainTasks(userInput);
-  res.json({ message: "Input received" });
+  res.json({ message: "Input received", content: response });
 })
 
 app.listen(3000, () => {
