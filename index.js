@@ -7,6 +7,7 @@ import dotenv from 'dotenv'; //importing dotenv to manage environment variables
 import { PromptTemplate } from "@langchain/core/prompts";
 import { ChatOpenAI } from "@langchain/openai";
 import { StringOutputParser } from "@langchain/core/output_parsers";
+import { RunnablePassthrough, RunnableSequence } from "@langchain/core/runnables";
 
 dotenv.config(); //loading environment variables from .env file
 
@@ -60,21 +61,53 @@ export async function handleLangchainTasks(userInput) {
 
   //creating a chain that combines the prompt template, LLM, output parser, and retriever
   //output of one component is passed as input to the next component
-  const chain = promptTemplate.pipe(llm).pipe(new StringOutputParser()).pipe(retriever);
 
-  const response = await chain.invoke({ userInput });
-
-
-  const prompt2 = "You are a friendly chatbot that answers questions about Scrimba based on the provided context: {context}. Only answer based on the context and do not make up any information. If you don't know the answer, apologize and ask the user to email at help@scrimba.com. User's query: {question}";
+  const prompt2 = "You are a friendly chatbot that answers questions about Scrimba based on the provided context: {context}. Only answer based on the context and do not make up any information. If you don't know the answer, apologize and ask the user to email at help@scrimba.com. User's query: {userInput}";
 
   const promptTemplate2 = PromptTemplate.fromTemplate(prompt2);
 
-  const chain2 = promptTemplate2.pipe(llm)
+  //const chain = promptTemplate.pipe(llm).pipe(new StringOutputParser()).pipe(retriever).pipe(extractText).pipe(promptTemplate2).pipe(llm);
 
-  const response2 = await chain2.invoke({
-    context: response,
-    question: userInput
+  const standaloneQsnChain = RunnableSequence.from([
+    promptTemplate,
+    llm,
+    new StringOutputParser() // here, we'll get the standalone qsn
+  ])
+
+  const retrieverChain = RunnableSequence.from([
+    prevResult => prevResult.qsn,
+    retriever,
+    extractText,
+  ])
+
+  const finalResponseChain = RunnableSequence.from([
+    promptTemplate2,
+    llm,
+    new StringOutputParser()
+  ])
+
+  const chain = RunnableSequence.from([
+    {
+      qsn: standaloneQsnChain,
+      original_input: new RunnablePassthrough()
+    },
+    {
+      context: retrieverChain,
+      userInput: ({ original_input }) => original_input.userInput
+    },
+    finalResponseChain
+  ])
+
+  const response = await chain.invoke({ userInput });
+
+  return response;
+
+}
+
+let contextText;
+const extractText = (retrievedArray) => {
+  retrievedArray.map((item) => {
+    contextText += item.pageContent + "\n";
   })
-
-  return response2.content;
+  return contextText;
 }
