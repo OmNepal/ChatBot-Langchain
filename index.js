@@ -45,7 +45,11 @@ await SupabaseVectorStore.fromDocuments( //load the documents and their embeddin
 )
   */
 
+const convHistory = [];
+
 export async function handleLangchainTasks(userInput) {
+  convHistory.push(`Human: ${userInput}`);
+
   const prompt = "Create a standalone question based on the folowing user input: {userInput}";
   //creating a prompt template to generate standalone questions based on user input
   const promptTemplate = PromptTemplate.fromTemplate(prompt);
@@ -62,7 +66,7 @@ export async function handleLangchainTasks(userInput) {
   //creating a chain that combines the prompt template, LLM, output parser, and retriever
   //output of one component is passed as input to the next component
 
-  const prompt2 = "You are a friendly chatbot that answers questions about Scrimba based on the provided context: {context}. Only answer based on the context and do not make up any information. If you don't know the answer, apologize and ask the user to email at help@scrimba.com. User's query: {userInput}";
+  const prompt2 = "You are a friendly chatbot that answers questions about Scrimba based on the provided context: {context} and user's conversation history: {convHistory}. Use the conversation history to provide a specific personalized responses to the user. Very importantly, only answer based on the provided information and do not make up any information. Remember that you will not add any labels like AI or HUMAN in your response. If you don't know the answer, apologize and ask the user to email at help@scrimba.com. User's query: {userInput}";
 
   const promptTemplate2 = PromptTemplate.fromTemplate(prompt2);
 
@@ -93,12 +97,17 @@ export async function handleLangchainTasks(userInput) {
     },
     {
       context: retrieverChain,
-      userInput: ({ original_input }) => original_input.userInput
+      userInput: ({ original_input }) => original_input.userInput,
+      convHistory: ({ original_input }) => original_input.convHistory
     },
     finalResponseChain
   ])
 
-  const response = await chain.invoke({ userInput });
+  const convHistoryStr = formatConvHistory(convHistory);
+
+  const response = await chain.invoke({ userInput, convHistory: convHistoryStr });
+
+  convHistory.push(`AI: ${response}`)
 
   return response;
 
@@ -111,3 +120,7 @@ const extractText = (retrievedArray) => {
   })
   return contextText;
 }
+
+
+const formatConvHistory = (convHistory) => convHistory.map((c) => c).join('\n');
+
