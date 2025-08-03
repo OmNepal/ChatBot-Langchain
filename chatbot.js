@@ -6,7 +6,7 @@ const form = document.getElementById('form');
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
-  progressConversation();
+  progressHumanConversation();
 
   const response = await fetch('user-input', {
     method: 'POST',
@@ -17,10 +17,12 @@ form.addEventListener('submit', async (e) => {
   })
 
   const data = await response.json();
-  document.querySelector('.speech-ai').textContent = data.content;
+
+  progressAIConversation(data.content);
+
 })
 
-async function progressConversation() {
+function progressHumanConversation() {
   question = userInput.value;
   userInput.value = '';
 
@@ -30,12 +32,15 @@ async function progressConversation() {
   chatbotConversation.appendChild(newUserSpeechBubble);
   newUserSpeechBubble.textContent = question;
   chatbotConversation.scrollTop = chatbotConversation.scrollHeight; //scroll to the bottom of the conversation
+}
 
+function progressAIConversation(data) {
+  console.log(data)
   //add AI message to the coversation
   const newAISpeechBubble = document.createElement('div');
   newAISpeechBubble.classList.add('speech', 'speech-ai');
   chatbotConversation.appendChild(newAISpeechBubble);
-  newAISpeechBubble.textContent = "Typing...";
+  newAISpeechBubble.textContent = data;
   chatbotConversation.scrollTop = chatbotConversation.scrollHeight;
 
 }
